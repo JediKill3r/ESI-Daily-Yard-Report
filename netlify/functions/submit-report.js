@@ -81,14 +81,14 @@ export default async (req) => {
       }
     `;
 
-    const variables = {
+    const createItemVariables = {
       boardId: String(boardId),
       groupId: yardGroup.id,
       itemName,
       columnValues: JSON.stringify(columnValues),
     };
 
-    const mondayRes = await fetch("https://api.monday.com/v2", {
+    const itemRes = await fetch("https://api.monday.com/v2", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -96,17 +96,63 @@ export default async (req) => {
       },
       body: JSON.stringify({
         query: createItemQuery,
-        variables,
+        variables: createItemVariables,
       }),
     });
 
-    const result = await mondayRes.json();
+    const itemResult = await itemRes.json();
 
-    if (!mondayRes.ok || result.errors) {
+    if (!itemRes.ok || itemResult.errors) {
       return new Response(
         JSON.stringify({
-          error: result.errors?.[0]?.message || "Failed to create item in Monday",
-          details: result,
+          error: itemResult.errors?.[0]?.message || "Failed to create item in Monday",
+          details: itemResult,
+          groupUsed: yardGroup,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const itemId = itemResult?.data?.create_item?.id;
+
+    const updateBody = columnValues?.text || "Daily Yard Report submitted.";
+
+    const createUpdateQuery = `
+      mutation CreateUpdate($itemId: ID!, $body: String!) {
+        create_update(item_id: $itemId, body: $body) {
+          id
+        }
+      }
+    `;
+
+    const updateRes = await fetch("https://api.monday.com/v2", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: apiToken,
+      },
+      body: JSON.stringify({
+        query: createUpdateQuery,
+        variables: {
+          itemId: String(itemId),
+          body: updateBody,
+        },
+      }),
+    });
+
+    const updateResult = await updateRes.json();
+
+    if (!updateRes.ok || updateResult.errors) {
+      return new Response(
+        JSON.stringify({
+          error:
+            updateResult.errors?.[0]?.message ||
+            "Item created, but failed to create update.",
+          details: updateResult,
+          itemId,
           groupUsed: yardGroup,
         }),
         {
@@ -119,7 +165,8 @@ export default async (req) => {
     return new Response(
       JSON.stringify({
         ok: true,
-        data: result.data,
+        itemId,
+        updateId: updateResult?.data?.create_update?.id,
         groupUsed: yardGroup,
       }),
       {
