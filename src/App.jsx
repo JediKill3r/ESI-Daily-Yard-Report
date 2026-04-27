@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
-const BOARD_ID = 18401951089;
-const TARGET_GROUP_ID = 'new_group29179';
+const BOARD_ID = 18410416602;
+const TARGET_GROUP_ID = "group_nmt2kbyj";
 
 function blankActivity() {
   return {
